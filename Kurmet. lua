@@ -1,0 +1,50 @@
+import cv2
+import numpy as np
+import pyautogui
+
+# Настройка экрана: разрешение вашего монитора
+SCREEN_WIDTH, SCREEN_HEIGHT = pyautogui.size()
+
+print("Скрипт запущен. Для выхода закройте окно программы.")
+
+while True:
+    # 1. Делаем снимок экрана (или его части)
+    screenshot = pyautogui.screenshot(region=(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+    frame = np.array(screenshot)
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    # 2. Переводим изображение в формат HSV для точного поиска цвета
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # 3. Задаем диапазон зеленого цвета (например, цвет манекена или маркера)
+    lower_green = np.array([35, 100, 100])
+    upper_green = np.array([85, 255, 255])
+
+    # 4. Создаем маску: всё, что не зеленое, станет черным
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+
+    # 5. Находим контуры зеленого объекта
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    if contours:
+        # Находим самый большой зеленый объект
+        largest_contour = max(contours, key=cv2.contourArea)
+        
+        # Получаем его координаты и размеры
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        
+        # Вычисляем центр этого объекта
+        center_x = x + w // 2
+        center_y = y + h // 2
+
+        # 6. Плавно перемещаем курсор мыши в центр объекта
+        pyautogui.moveTo(center_x, center_y, duration=0.1)
+
+    # Отображаем окно с маской (для визуального теста)
+    cv2.imshow('Поиск объекта', mask)
+
+    # Нажмите 'q' на английской раскладке, чтобы выйти
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cv2.destroyAllWindows()
