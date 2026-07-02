@@ -1,0 +1,74 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+
+local isFlying = false
+local flySpeed = 50 -- Скорость полета
+
+local bodyGyro = nil
+local bodyVelocity = nil
+local connection = nil
+
+-- Функция включения полета
+local function startFlying()
+	if isFlying then return end -- Если уже летим, ничего не делаем
+	isFlying = true
+	humanoid.PlatformStand = true
+	
+	bodyGyro = Instance.new("BodyGyro")
+	bodyGyro.maxTorque = Vector3.new(4e5, 4e5, 4e5)
+	bodyGyro.cframe = rootPart.CFrame
+	bodyGyro.Parent = rootPart
+	
+	bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.maxForce = Vector3.new(4e5, 4e5, 4e5)
+	bodyVelocity.velocity = Vector3.new(0, 0, 0)
+	bodyVelocity.Parent = rootPart
+	
+	connection = RunService.RenderStepped:Connect(function()
+		bodyGyro.cframe = camera.CFrame
+		local moveDirection = humanoid.MoveDirection
+		
+		if moveDirection.Magnitude > 0 then
+			bodyVelocity.velocity = camera.CFrame.LookVector * flySpeed * (moveDirection.Z < 0 and 1 or moveDirection.Z > 0 and -1 or 1)
+			if moveDirection.X ~= 0 then
+				bodyVelocity.velocity = bodyVelocity.velocity + camera.CFrame.RightVector * flySpeed * (moveDirection.X > 0 and 1 or -1)
+			end
+		else
+			bodyVelocity.velocity = Vector3.new(0, 0, 0)
+		end
+	end)
+end
+
+-- Функция выключения полета
+local function stopFlying()
+	if not isFlying then return end -- Если не летим, ничего не делаем
+	isFlying = false
+	humanoid.PlatformStand = false
+	
+	if bodyGyro then bodyGyro:Destroy() end
+	if bodyVelocity then bodyVelocity:Destroy() end
+	if connection then connection:Disconnect() end
+end
+
+-- Отслеживание раздельных клавиш ON и OFF
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end -- Игнорируем чат
+	
+	if input.KeyCode == Enum.KeyCode.O then
+		startFlying() -- Клавиша O (On) включает полет
+	elseif input.KeyCode == Enum.KeyCode.F then
+		stopFlying()  -- Клавиша F (oFf) выключает полет
+	end
+end)
+
+-- Сброс при смерти
+humanoid.Died:Connect(function()
+	stopFlying()
+end)
